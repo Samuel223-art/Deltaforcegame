@@ -64,6 +64,6 @@ export interface GameState {
     healPlayer: (amount: number) => void;
     removeHealthPack: (id: string) => void;
     addParticles: (count: number, position: [number, number, number], color: string) => void;
-    updateParticles: (delta: number) => void;
+    removeParticle: (id: string) => void;
   };
 }

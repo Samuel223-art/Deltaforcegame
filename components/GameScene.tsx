@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useMemo } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { Sky, PointerLockControls, useGLTF, Html } from '@react-three/drei';
 import { Physics, RigidBody, CuboidCollider, BallCollider, CapsuleCollider } from '@react-three/rapier';
-import { TextureLoader, RepeatWrapping, Vector3, Euler, Quaternion, Camera, type Group, type Mesh } from 'three';
+import { TextureLoader, RepeatWrapping, Vector3, Euler, Quaternion, Camera, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import type { RapierRigidBody, Collider, CollisionEnterEvent } from '@react-three/rapier';
 import { useGameStore } from '../hooks/useGameStore';
 import type { BulletState, EnemyState, HealthPackState, ParticleState } from '../types';
@@ -118,26 +118,33 @@ const Bullet: React.FC<{ bullet: BulletState }> = ({ bullet }) => {
 };
 
 const Particle: React.FC<{ particle: ParticleState }> = ({ particle }) => {
-    // FIX: Use `Mesh` type directly instead of `THREE.Mesh` as `THREE` namespace is not imported.
     const meshRef = useRef<Mesh>(null!);
     const velocity = useMemo(() => new Vector3((Math.random() - 0.5) * 3, (Math.random()) * 3, (Math.random() - 0.5) * 3), []);
+    const lifeTimer = useRef(particle.life);
+    const removeParticle = useGameStore(s => s.actions.removeParticle);
   
     useFrame((_, delta) => {
-      if (meshRef.current) {
-        meshRef.current.position.addScaledVector(velocity, delta);
-      }
+        lifeTimer.current -= delta;
+        if (lifeTimer.current <= 0) {
+            removeParticle(particle.id);
+            return;
+        }
+
+        if (meshRef.current) {
+            meshRef.current.position.addScaledVector(velocity, delta);
+            (meshRef.current.material as MeshBasicMaterial).opacity = lifeTimer.current / particle.life;
+        }
     });
   
     return (
       <mesh ref={meshRef} position={particle.position}>
         <sphereGeometry args={[0.05, 4, 4]} />
-        <meshBasicMaterial color={particle.color} transparent opacity={particle.life / 0.5} />
+        <meshBasicMaterial color={particle.color} transparent opacity={1} />
       </mesh>
     );
 };
 
 const HealthPack: React.FC<{ pack: HealthPackState }> = ({ pack }) => {
-    // FIX: Use `Group` type directly instead of `THREE.Group` as `THREE` namespace is not imported.
     const meshRef = useRef<Group>(null!);
     useFrame(() => {
         meshRef.current.rotation.y += 0.01;
@@ -167,7 +174,7 @@ const HealthPack: React.FC<{ pack: HealthPackState }> = ({ pack }) => {
 const Enemy: React.FC<{ enemy: EnemyState }> = ({ enemy }) => {
   const enemyRef = useRef<RapierRigidBody>(null);
   const { scene } = useGLTF('https://threejs.org/examples/models/gltf/Soldier.glb');
-  const { player, actions } = useGameStore(s => ({ player: s.player, actions: s.actions }));
+  const actions = useGameStore(s => s.actions);
   const lastAttackTime = useRef(0);
 
   const model = useMemo(() => {
@@ -183,7 +190,8 @@ const Enemy: React.FC<{ enemy: EnemyState }> = ({ enemy }) => {
   useFrame((_, delta) => {
     if (!enemyRef.current || enemy.health <= 0) return;
     const enemyPosition = enemyRef.current.translation();
-    const playerPosition = player.position;
+    // Get latest player position without subscribing to prevent re-renders
+    const playerPosition = useGameStore.getState().player.position;
     const distance = playerPosition.distanceTo(new Vector3(enemyPosition.x, enemyPosition.y, enemyPosition.z));
     
     // AI Behavior
@@ -279,9 +287,6 @@ const Player = () => {
             });
             useGameStore.setState(s => ({ ammo: { ...s.ammo, clip: s.ammo.clip - 1 } }));
         }
-
-        // Particle update
-        actions.updateParticles(delta);
     });
 
     const handleHealthPackCollision = (event: CollisionEnterEvent) => {
@@ -302,7 +307,12 @@ const Player = () => {
 // --- MAIN SCENE COMPONENT ---
 
 export default function GameScene() {
-  const { bullets, enemies, healthPacks, particles, gameOver } = useGameStore(s => s);
+  // Use granular selectors to prevent re-renders on unrelated state changes
+  const bullets = useGameStore(s => s.bullets);
+  const enemies = useGameStore(s => s.enemies);
+  const healthPacks = useGameStore(s => s.healthPacks);
+  const particles = useGameStore(s => s.particles);
+  const gameOver = useGameStore(s => s.gameOver);
   const initGame = useGameStore(s => s.actions.initGame);
 
   useEffect(() => {

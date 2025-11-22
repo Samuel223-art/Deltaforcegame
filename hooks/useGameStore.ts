@@ -122,11 +122,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         }));
         set(state => ({ particles: [...state.particles, ...newParticles] }));
     },
-    updateParticles: (delta) => {
+    removeParticle: (id) => {
         set(state => ({
-            particles: state.particles
-                .map(p => ({ ...p, life: p.life - delta }))
-                .filter(p => p.life > 0),
+            particles: state.particles.filter(p => p.id !== id),
         }));
     },
   },
