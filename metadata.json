@@ -1,0 +1,5 @@
+{
+  "name": "3D FPS Mobile Game",
+  "description": "A 3D First-Person Shooter (FPS) mobile game built with React and Three.js, optimized for landscape mobile orientation. Features on-screen controls, a shooting and ammo system, and a realistic 3D environment with human-like enemies.",
+  "requestFramePermissions": []
+}
