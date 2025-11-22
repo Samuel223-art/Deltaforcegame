@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Vector3 } from 'three';
-import type { GameState } from '../types';
+import { GameState, GameStatus } from '../types';
 
 const CLIP_SIZE = 30;
 const INITIAL_TOTAL_AMMO = 120;
@@ -17,8 +17,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   particles: [],
   isFiring: false,
   isReloading: false,
-  gameStarted: false,
-  gameOver: false,
+  gameStatus: GameStatus.SPLASH,
   movement: {
     forward: false,
     backward: false,
@@ -32,6 +31,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     maxHealth: PLAYER_MAX_HEALTH,
   },
   actions: {
+    setGameStatus: (status) => set({ gameStatus: status }),
     initGame: (enemyCount, healthPackCount) => {
         const enemies = Array.from({ length: enemyCount }, (_, i) => ({
         id: `enemy_${i}_${Date.now()}`,
@@ -46,9 +46,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         enemies, 
         healthPacks,
         ammo: { clip: CLIP_SIZE, total: INITIAL_TOTAL_AMMO }, 
-        player: { ...get().player, health: PLAYER_MAX_HEALTH },
-        gameStarted: true,
-        gameOver: false,
+        player: { ...get().player, health: PLAYER_MAX_HEALTH, position: new Vector3(0, 1, 10) },
+        gameStatus: GameStatus.PLAYING,
         bullets: [],
         particles: [],
       });
@@ -92,15 +91,19 @@ export const useGameStore = create<GameState>((set, get) => ({
         }));
     },
     removeEnemy: (id) => {
-        set((state) => ({
-            enemies: state.enemies.filter(e => e.id !== id)
-        }));
+        set((state) => {
+            const newEnemies = state.enemies.filter(e => e.id !== id);
+            if (newEnemies.length === 0) {
+                return { enemies: newEnemies, gameStatus: GameStatus.WON };
+            }
+            return { enemies: newEnemies };
+        });
     },
     damagePlayer: (damage) => {
         set((state) => {
             const newHealth = Math.max(0, state.player.health - damage);
             if (newHealth === 0) {
-                return { player: { ...state.player, health: 0 }, gameOver: true };
+                return { player: { ...state.player, health: 0 }, gameStatus: GameStatus.LOST };
             }
             return { player: { ...state.player, health: newHealth } };
         });

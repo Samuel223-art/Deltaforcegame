@@ -5,7 +5,7 @@ import { Physics, RigidBody, CuboidCollider, BallCollider, CapsuleCollider } fro
 import { TextureLoader, RepeatWrapping, Vector3, Euler, Quaternion, Camera, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 import type { RapierRigidBody, Collider, CollisionEnterEvent } from '@react-three/rapier';
 import { useGameStore } from '../hooks/useGameStore';
-import type { BulletState, EnemyState, HealthPackState, ParticleState } from '../types';
+import { BulletState, EnemyState, HealthPackState, ParticleState, GameStatus } from '../types';
 
 // --- AUDIO ---
 const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -248,7 +248,6 @@ const Enemy: React.FC<{ enemy: EnemyState }> = ({ enemy }) => {
 const Player = () => {
     const { movement, actions } = useGameStore((s) => ({ movement: s.movement, actions: s.actions }));
     const playerRef = useRef<RapierRigidBody>(null);
-    const cameraRef = useRef<Camera>(null);
     const { isFiring, ammo, isReloading } = useGameStore(s => ({isFiring: s.isFiring, ammo: s.ammo, isReloading: s.isReloading}));
     const lastShotTime = useRef(0);
 
@@ -297,7 +296,7 @@ const Player = () => {
     }
 
     return (
-        <RigidBody ref={playerRef} colliders={false} position={[0, 1, 10]} enabledRotations={[false, true, false]} onCollisionEnter={handleHealthPackCollision}>
+        <RigidBody ref={playerRef} colliders={false} position={useGameStore.getState().player.position} enabledRotations={[false, true, false]} onCollisionEnter={handleHealthPackCollision}>
             <CapsuleCollider args={[0.8, 0.4]} />
         </RigidBody>
     );
@@ -307,18 +306,11 @@ const Player = () => {
 // --- MAIN SCENE COMPONENT ---
 
 export default function GameScene() {
-  // Use granular selectors to prevent re-renders on unrelated state changes
   const bullets = useGameStore(s => s.bullets);
   const enemies = useGameStore(s => s.enemies);
   const healthPacks = useGameStore(s => s.healthPacks);
   const particles = useGameStore(s => s.particles);
-  const gameOver = useGameStore(s => s.gameOver);
-  const initGame = useGameStore(s => s.actions.initGame);
-
-  useEffect(() => {
-    initGame(5, 3); // Start with 5 enemies and 3 health packs
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const gameStatus = useGameStore(s => s.gameStatus);
 
   return (
     <Canvas shadows camera={{ fov: 60 }}>
@@ -354,7 +346,7 @@ export default function GameScene() {
       {/* Particles are not physics objects, so they are rendered outside */}
       {particles.map((p) => <Particle key={p.id} particle={p} />)}
 
-      {!gameOver && <PointerLockControls />}
+      {gameStatus === GameStatus.PLAYING && <PointerLockControls />}
     </Canvas>
   );
 }

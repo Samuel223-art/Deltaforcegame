@@ -1,5 +1,13 @@
 import type { Vector3 } from 'three';
 
+export enum GameStatus {
+  SPLASH,
+  LOBBY,
+  PLAYING,
+  WON,
+  LOST,
+}
+
 export interface BulletState {
   id: string;
   position: [number, number, number];
@@ -35,8 +43,7 @@ export interface GameState {
   particles: ParticleState[];
   isFiring: boolean;
   isReloading: boolean;
-  gameStarted: boolean;
-  gameOver: boolean;
+  gameStatus: GameStatus;
   movement: {
     forward: boolean;
     backward: boolean;
@@ -51,6 +58,7 @@ export interface GameState {
   };
   actions: {
     initGame: (enemyCount: number, healthPackCount: number) => void;
+    setGameStatus: (status: GameStatus) => void;
     setMovement: (movement: Partial<GameState['movement']>) => void;
     setPlayerState: (playerState: Partial<GameState['player']>) => void;
     startFiring: () => void;
